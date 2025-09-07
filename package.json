@@ -1,0 +1,43 @@
+{
+  "name": "vegan-recipe-builder-desktop",
+  "version": "1.0.0",
+  "description": "Vegan Recipe Builder Pro desktop app (Electron, IndexedDB, Admin, Preset Packs)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build:win": "electron-builder --win nsis",
+    "build:mac": "electron-builder --mac dmg",
+    "build:linux": "electron-builder --linux AppImage"
+  },
+  "author": "Арсений & Co",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "co.laeda.veganrecipebuilder",
+    "productName": "Vegan Recipe Builder",
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!dist/**"
+    ],
+    "mac": {
+      "category": "public.app-category.lifestyle",
+      "icon": "assets/icon.png"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
+    }
+  }
+}

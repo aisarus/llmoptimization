@@ -1,0 +1,307 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline';"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Vegan Recipe Builder Pro · v1.6 BigTech</title>
+<style>
+:root{
+  --bg: #0b0f14; --bg2:#0e1520; --surface: rgba(255,255,255,.05); --line:#1f2b3a;
+  --fg:#e6edf3; --mut:#a6b0bf; --brand:#7c3aed; --brand2:#22c55e; --accent:#0ea5e9; --danger:#ef4444;
+  --radius:16px; --shadow:0 12px 40px rgba(0,0,0,.35);
+}
+[data-theme="light"]{ --bg:#f7f8fa; --bg2:#ffffff; --surface: rgba(0,0,0,.04); --line:#e5e7eb; --fg:#0b1320; --mut:#5b6675; }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:linear-gradient(135deg,var(--bg),var(--bg2));color:var(--fg);font:14px/1.5 Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,-apple-system,sans-serif}
+.container{max-width:1240px;margin:0 auto;padding:0 20px}
+header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,rgba(6,10,16,.85),rgba(6,10,16,.65));backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+[data-theme="light"] header{background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.65))}
+.hrow{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:14px 0}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand2));box-shadow:0 0 0 3px rgba(124,58,237,.25)}
+.h1{font-size:18px;margin:0}
+.sub{color:var(--mut);font-size:12px}
+.tabbar{display:flex;gap:8px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 12px;border-radius:12px;cursor:pointer}
+.tab.active{background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(34,197,94,.18));border-color:#334155}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 12px;border-radius:12px;cursor:pointer}
+.btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand2));border:none;color:#020611}
+.btn.danger{background:rgba(239,68,68,.12);border-color:#3f1f25;color:#fecaca}
+.btn.icon{display:inline-flex;align-items:center;gap:8px}
+
+.hero{padding:16px 0;border-bottom:1px solid var(--line);background:linear-gradient(135deg,rgba(124,58,237,.08),transparent)}
+.hero .grid{display:grid;grid-template-columns:1.4fr .6fr;gap:14px}
+.card{background:linear-gradient(180deg,var(--surface),transparent);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+
+.grid2{display:grid;grid-template-columns:340px 1fr;gap:16px;margin-top:16px}
+label{display:block;margin:8px 0 4px;color:var(--mut)}
+input,select,textarea{width:100%;background:rgba(255,255,255,.04);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:10px}
+input[type="checkbox"],input[type="file"]{width:auto}
+.small{font-size:12px;color:var(--mut)}
+.kpi{display:flex;gap:10px;flex-wrap:wrap}
+.kpi .pill{background:var(--surface);border:1px solid var(--line);padding:10px 12px;border-radius:14px;min-width:120px}
+.kpi .pill strong{font-size:16px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+.tbl th{color:var(--mut)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.cardR{display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,var(--surface),transparent);border:1px solid var(--line);border-radius:16px;padding:12px;transition:transform .12s ease}
+.cardR:hover{transform:translateY(-2px)}
+.cardR img{width:100%;height:160px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+.empty{padding:14px;border:1px dashed #334155;border-radius:12px;color:var(--mut);text-align:center}
+.toast{position:fixed;right:18px;bottom:18px;background:#0b1320;border:1px solid #223047;color:#c6d0df;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transform:translateY(10px);transition:.2s}
+.toast.show{opacity:1;transform:translateY(0)}
+.switch{display:inline-flex;align-items:center;gap:8px}
+.switch input{display:none}
+.switch .knob{width:44px;height:24px;background:var(--surface);border:1px solid var(--line);border-radius:999px;position:relative}
+.switch .knob:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand2));transition:.18s}
+.switch input:checked + .knob:after{left:24px}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace}
+hr.sep{border:none;border-top:1px solid var(--line);margin:12px 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="container hrow">
+    <div class="brand"><div class="dot"></div>
+      <div>
+        <div class="h1">Vegan Recipe Builder Pro <span class="small">· Desktop</span></div>
+        <div class="sub">Electron · IndexedDB · Конструктор · Галерея · Админ · Preset Packs</div>
+      </div>
+    </div>
+    <div class="tabbar">
+      <button class="tab active" data-tab="builder">Конструктор</button>
+      <button class="tab" data-tab="recipes">Рецепты</button>
+      <button class="tab" data-tab="admin">Админ</button>
+    </div>
+    <div class="actions">
+      <label class="switch small"><input id="theme" type="checkbox"><span class="knob"></span>Тема</label>
+      <button id="btnRandom" class="btn icon">🎲 Случайный</button>
+      <button id="btnCopy" class="btn icon">📋 Копировать</button>
+      <button id="btnExport" class="btn icon">⬇️ Экспорт JSON</button>
+      <button id="btnPrint" class="btn icon">🖨️ Печать</button>
+    </div>
+  </div>
+</header>
+<section class="hero">
+  <div class="container grid">
+    <div class="card"><strong>Как пользоваться</strong>
+      <div class="small">1) Импортируйте ингредиенты в «Админ». 2) Соберите рецепт в «Конструктор». 3) Сохраните и найдите его во вкладке «Рецепты». Пакеты пресетов можно загрузить одним JSON.</div>
+    </div>
+    <div class="card"><strong>Фильтры</strong>
+      <div class="small">Веган по умолчанию. Быстрые фильтры аллергенов, паслёнов и отдельный выключатель баклажана.</div>
+    </div>
+  </div>
+</section>
+
+<div class="container" style="padding:14px 0 28px">
+  <!-- BUILDER TAB -->
+  <section id="tab_builder">
+    <div class="grid2">
+      <aside class="card">
+        <label>Порций</label><input id="servings" type="number" value="2" min="1"/>
+        <label>Категория</label>
+        <select id="category"><option value="all">Все</option><option value="grain">Зерно/основа</option><option value="protein">Белок</option><option value="veg">Овощи</option><option value="greens">Зелень</option><option value="sauce">Соус/масла</option><option value="spice">Специи</option></select>
+        <label>Поиск ингредиента</label><input id="search" placeholder="например: нут, киноа, тахини"/>
+        <label>Аллергии/исключения</label>
+        <div class="toolbar">
+          <label class="small"><input type="checkbox" id="f_gluten"> Без глютена</label>
+          <label class="small"><input type="checkbox" id="f_soy"> Без сои</label>
+          <label class="small"><input type="checkbox" id="f_nuts"> Без орехов</label>
+          <label class="small"><input type="checkbox" id="f_night"> Без паслёнов</label>
+          <label class="small"><input type="checkbox" id="f_no_eggplant" checked> Без баклажана</label>
+        </div>
+        <label>Ингредиент</label>
+        <select id="ingSelect"></select>
+        <div class="toolbar"><input id="qty" type="number" min="1" value="100" style="max-width:120px"><button id="add" class="btn primary">Добавить</button></div>
+        <div class="small">Двойной клик по списку ингредиентов добавляет 100 г.</div>
+        <hr class="sep"/>
+        <label>Сохранить как рецепт</label>
+        <div class="toolbar"><input id="recipeName" placeholder="например: Боул с нутом" style="flex:1"><button id="saveRecipe" class="btn">💾 Сохранить</button></div>
+      </aside>
+      <main class="card">
+        <div class="kpi">
+          <div class="pill"><div class="small">Ккал / рецепт</div><strong id="kcalT">0</strong></div>
+          <div class="pill"><div class="small">Белок, г</div><strong id="protT">0</strong></div>
+          <div class="pill"><div class="small">Жиры, г</div><strong id="fatT">0</strong></div>
+          <div class="pill"><div class="small">Углеводы, г</div><strong id="carbT">0</strong></div>
+          <div class="pill"><div class="small">Стоимость, ₪</div><strong id="costT">0.00</strong></div>
+          <div class="pill"><div class="small">На порцию</div><strong id="perServe">0 ккал</strong></div>
+        </div>
+        <hr class="sep"/>
+        <h3 style="margin:0 0 8px">Состав</h3>
+        <table class="tbl" id="table"><thead><tr><th>Ингр.</th><th class="small">Кат.</th><th>г</th><th>Ккал</th><th>Б</th><th>Ж</th><th>У</th><th>₪</th><th></th></tr></thead><tbody></tbody></table>
+        <hr class="sep"/>
+        <div class="toolbar"><button id="btnSteps" class="btn">🧪 Шаги</button><button id="btnClear" class="btn danger">Очистить</button></div>
+        <label>Шаги приготовления</label>
+        <textarea id="steps" rows="5" placeholder="Шаги появятся здесь…"></textarea>
+        <div class="small">Шаги генерируются офлайн по категориям ингредиентов.</div>
+      </main>
+    </div>
+  </section>
+
+  <!-- RECIPES TAB -->
+  <section id="tab_recipes" style="display:none">
+    <div class="card">
+      <div class="toolbar"><input id="qRecipes" placeholder="поиск по названию/тегам" style="flex:1"><button id="exportDb" class="btn">⬇️ Экспорт всей БД</button></div>
+      <div id="recipesList" class="gallery"></div>
+      <div id="recipesEmpty" class="empty" style="display:none">Здесь появятся рецепты из локальной БД. Зайдите в «Админ», чтобы импортировать или создать первый рецепт.</div>
+    </div>
+  </section>
+
+  <!-- ADMIN TAB -->
+  <section id="tab_admin" style="display:none">
+    <div class="grid2" style="grid-template-columns:1fr 1fr">
+      <div class="card">
+        <h3 style="margin:0 0 8px">Ингредиенты (IndexedDB)</h3>
+        <label>Добавить/обновить</label>
+        <div class="toolbar"><input id="ingName" placeholder="Название (Киноа)" style="flex:1"><select id="ingCat"><option value="grain">Зерно</option><option value="protein">Белок</option><option value="veg">Овощ</option><option value="greens">Зелень</option><option value="sauce">Соус</option><option value="spice">Специи</option></select></div>
+        <div class="grid2" style="grid-template-columns:repeat(4,1fr)">
+          <input id="kcal" type="number" step="1" placeholder="Ккал/100г"><input id="prot" type="number" step="0.1" placeholder="Б/100г"><input id="fat" type="number" step="0.1" placeholder="Ж/100г"><input id="carb" type="number" step="0.1" placeholder="У/100г">
+        </div>
+        <div class="toolbar"><input id="price" type="number" step="0.01" placeholder="₪/100г"><input id="fdc" class="mono" placeholder="FDC ID или запрос (quinoa cooked)"></div>
+        <div class="toolbar small">
+          <label><input type="checkbox" id="flag_gluten"> глютен</label>
+          <label><input type="checkbox" id="flag_soy"> соя</label>
+          <label><input type="checkbox" id="flag_nuts"> орехи/семена</label>
+          <label><input type="checkbox" id="flag_night"> паслёны</label>
+          <label><input type="checkbox" id="flag_eggplant"> баклажан</label>
+        </div>
+        <div class="toolbar"><button id="saveIng" class="btn primary">💾 Сохранить ингредиент</button><button id="deleteIng" class="btn danger">🗑️ Удалить по имени</button></div>
+        <hr class="sep"/>
+        <label>Импорт ингредиентов (JSON)</label>
+        <textarea id="importIng" rows="5" class="mono" placeholder='[{"name":"Киноа","cat":"grain","per100":{"k":120,"p":4.4,"f":1.9,"c":21.3,"price":2.2},"flags":{"gluten":false,"soy":false,"nuts":false}}]'></textarea>
+        <div class="toolbar"><button id="btnImportIng" class="btn">Импортировать</button><button id="btnClearIng" class="btn danger">Очистить таблицу</button></div>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px">Рецепты (IndexedDB)</h3>
+        <div class="toolbar"><input id="rName" placeholder="Название рецепта" style="flex:1"><input id="rServ" type="number" min="1" value="2" style="max-width:120px"></div>
+        <input id="rTags" placeholder="Теги через запятую (боул,безглют)">
+        <textarea id="rSteps" rows="4" placeholder="Шаги…"></textarea>
+        <div class="toolbar"><input id="rImage" type="file" accept="image/*"><button id="btnAddItem" class="btn">+ Ингредиент из БД</button><button id="btnSaveRecipe" class="btn primary">💾 Сохранить рецепт</button><button id="btnDelRecipe" class="btn danger">Удалить</button></div>
+        <div class="empty" id="rItemsBox">Состав рецепта: пока пусто. Нажмите «+ Ингредиент из БД».</div>
+        <hr class="sep"/>
+        <h3 style="margin:8px 0">Пакеты пресетов</h3>
+        <div class="small">Загрузите JSON с <span class="mono">{ingredients:[…], recipes:[…]}</span>. Файлы можно объединять.</div>
+        <div class="toolbar"><input id="packFile" type="file" accept="application/json"><button id="btnImportPack" class="btn">Импорт пакета</button><button id="btnExportDB" class="btn">⬇️ Экспорт всей БД</button><button id="btnResetDB" class="btn danger">Полный сброс БД</button></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+  const $=s=>document.querySelector(s), byId=id=>document.getElementById(id);
+  const fmt=(x,d=0)=>Number(x||0).toFixed(d); const slug=s=>String(s||'').toLowerCase().replace(/[^a-zа-я0-9]+/gi,'-').replace(/(^-|-$)/g,'');
+  // theme
+  const themeKey='vrb_theme'; const savedTheme=localStorage.getItem(themeKey)||'dark'; if(savedTheme==='light'){document.documentElement.setAttribute('data-theme','light'); byId('theme').checked=true}
+  byId('theme').addEventListener('change',()=>{ const t=byId('theme').checked?'light':'dark'; document.documentElement.setAttribute('data-theme', t==='light'?'light':''); localStorage.setItem(themeKey,t); });
+
+  // ---- IndexedDB wrapper ----
+  const DB_NAME='veganDB'; const DB_VERSION=1; let _db=null;
+  function openDB(){return new Promise((res,rej)=>{ if(_db) return res(_db); const rq=indexedDB.open(DB_NAME,DB_VERSION); rq.onupgradeneeded=()=>{const db=rq.result; if(!db.objectStoreNames.contains('ingredients')) db.createObjectStore('ingredients',{keyPath:'id'}); if(!db.objectStoreNames.contains('recipes')) db.createObjectStore('recipes',{keyPath:'id'});}; rq.onsuccess=()=>{_db=rq.result; res(_db)}; rq.onerror=()=>rej(rq.error)});}  
+  const idbAll=(store)=>openDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction(store,'readonly'); const st=tx.objectStore(store); const rq=st.getAll(); rq.onsuccess=()=>res(rq.result||[]); rq.onerror=()=>rej(rq.error)}));
+  const idbPut=(store,obj)=>openDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction(store,'readwrite'); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); tx.objectStore(store).put(obj)}));
+  const idbDel=(store,key)=>openDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction(store,'readwrite'); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); tx.objectStore(store).delete(key)}));
+  const idbClear=(store)=>openDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction(store,'readwrite'); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); tx.objectStore(store).clear()}));
+
+  const state={items:[], servings:2, ingCache:[], recCache:[]};
+  function toast(msg){const t=byId('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1500)}
+
+  // tabs
+  document.querySelectorAll('.tabbar .tab').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.tabbar .tab').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    const tab=b.dataset.tab; ['builder','recipes','admin'].forEach(k=> byId('tab_'+k).style.display = (k===tab)?'block':'none');
+  }));
+
+  // ingredients helpers
+  async function refreshIngCache(){ state.ingCache=await idbAll('ingredients'); refreshIngSelect(); }
+  function findIngById(id){ return state.ingCache.find(x=>x.id===id) }
+  function findIngByName(name){ name=(name||'').trim().toLowerCase(); return state.ingCache.find(x=>x.name.toLowerCase()===name) }
+  function flagsOK(x,f){ if(f.no_eggplant && x.flags?.eggplant) return false; if(f.no_night && x.flags?.night) return false; if(f.gf && x.flags?.gluten) return false; if(f.no_soy && x.flags?.soy) return false; if(f.no_nuts && x.flags?.nuts) return false; return true }
+  function filters(){ return { gf: byId('f_gluten').checked, no_soy: byId('f_soy').checked, no_nuts: byId('f_nuts').checked, no_night: byId('f_night').checked, no_eggplant: byId('f_no_eggplant').checked } }
+  function refreshIngSelect(){ const cat=byId('category').value; const q=(byId('search').value||'').toLowerCase().trim(); const f=filters(); const sel=byId('ingSelect'); sel.innerHTML=''; state.ingCache.filter(x=> (cat==='all'||x.cat===cat) && (!q||x.name.toLowerCase().includes(q)) && flagsOK(x,f)).forEach(x=>{ const o=document.createElement('option'); o.value=x.id; o.textContent=`${x.name} · ${x.cat}`; sel.appendChild(o) }); }
+
+  // builder
+  function addSelected(){ const id=byId('ingSelect').value; if(!id) return; const qty=Math.max(1,Math.round(Number(byId('qty').value||0))); state.items.push({id,qty}); renderTable(); }
+  function removeIdx(i){ state.items.splice(i,1); renderTable(); }
+  function totals(){ let k=0,p=0,f=0,c=0,cost=0; state.items.forEach(it=>{ const ing=findIngById(it.id); if(!ing) return; const m=it.qty/100; k+= (ing.per100?.k||0)*m; p+=(ing.per100?.p||0)*m; f+=(ing.per100?.f||0)*m; c+=(ing.per100?.c||0)*m; cost+= (ing.per100?.price||0)*m; }); return {k,p,f,c,cost}; }
+  function renderTable(){ const tb=document.querySelector('#table tbody'); tb.innerHTML=''; state.items.forEach((it,i)=>{ const ing=findIngById(it.id); if(!ing) return; const m=it.qty/100; const tr=document.createElement('tr'); tr.innerHTML=`<td>${ing.name}</td><td class="small">${ing.cat}</td><td>${it.qty}</td><td>${fmt(ing.per100.k*m)}</td><td>${fmt(ing.per100.p*m,1)}</td><td>${fmt(ing.per100.f*m,1)}</td><td>${fmt(ing.per100.c*m,1)}</td><td>${fmt((ing.per100.price||0)*m,2)}</td><td><button data-i="${i}" class="btn danger" style="padding:4px 8px">✖</button></td>`; tb.appendChild(tr); }); tb.querySelectorAll('button').forEach(b=>b.addEventListener('click',e=>removeIdx(Number(e.target.getAttribute('data-i'))))); updateKPI(); }
+  function updateKPI(){ const t=totals(); const s=Math.max(1,Number(byId('servings').value||1)); state.servings=s; byId('kcalT').textContent=fmt(t.k); byId('protT').textContent=fmt(t.p,1); byId('fatT').textContent=fmt(t.f,1); byId('carbT').textContent=fmt(t.c,1); byId('costT').textContent=fmt(t.cost,2); byId('perServe').textContent=`${fmt(t.k/s)} ккал`; }
+  function genSteps(){ const have=cat=>state.items.some(it=>findIngById(it.id)?.cat===cat); const txt=[]; if(have('grain')) txt.push('1) Отварить основу (1:2 вода), 12–15 мин.'); if(have('veg')) txt.push('2) Овощи: запечь 15–20 мин при 200°C или обжарить 6–8 мин.'); if(have('protein')) txt.push('3) Белок: отварить бобовые до мягкости или прогреть тофу/сейтан 3–4 мин.'); if(have('sauce')) txt.push('4) Соус: смешать тахини/масло с лимоном, водой, специями.'); if(have('greens')) txt.push('5) Зелень: нарезать, добавить перед подачей.'); txt.push('6) Собрать: основа → овощи → белок → соус → зелень.'); byId('steps').value=txt.join('\n'); }
+  function copyText(){ const t=totals(); const lines=[`# Рецепт на ${state.servings} порции`]; state.items.forEach(it=>{ const ing=findIngById(it.id); lines.push(`- ${ing?.name}: ${it.qty} г`)}); lines.push(`Итого: ${fmt(t.k)} ккал; Б:${fmt(t.p,1)} Ж:${fmt(t.f,1)} У:${fmt(t.c,1)}; ≈ ₪${fmt(t.cost,2)}`); if(byId('steps').value.trim()) lines.push('\nШаги:\n'+byId('steps').value.trim()); navigator.clipboard.writeText(lines.join('\n')).then(()=>toast('Скопировано')).catch(()=>toast('Не удалось скопировать')); }
+  function exportJSON(){ const payload={ts:new Date().toISOString(), servings:state.servings, items:state.items.map(it=>({id:it.id,name:findIngById(it.id)?.name,qty:it.qty})), totals:totals(), steps:byId('steps').value}; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'})); a.download=`vegan_recipe_${Date.now()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
+  function printPage(){ window.print(); }
+  async function saveRecipeFromBuilder(){ const name=(byId('recipeName').value||'').trim(); if(!name){ toast('Имя рецепта'); return } const id='rec-'+slug(name); const rec={ id, name, servings:state.servings, items:state.items, steps:byId('steps').value, tags:[], image:null, createdAt:Date.now(), updatedAt:Date.now() }; await idbPut('recipes',rec); toast('Рецепт сохранён в БД'); await refreshRecCache(); }
+
+  // recipes gallery
+  async function refreshRecCache(){ state.recCache=await idbAll('recipes'); renderRecipes(); }
+  function renderRecipes(){ const list=$('#recipesList'); const empty=$('#recipesEmpty'); const q=(byId('qRecipes').value||'').toLowerCase().trim(); const arr=state.recCache.filter(r=>!q||r.name.toLowerCase().includes(q)|| (r.tags||[]).join(',').toLowerCase().includes(q)); list.innerHTML=''; if(!arr.length){ empty.style.display='block'; return } empty.style.display='none'; arr.sort((a,b)=>b.updatedAt-a.updatedAt).forEach(r=>{ const it=document.createElement('div'); it.className='cardR'; it.innerHTML=`<img src="${r.image||'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'200\'><rect width=\'100%\' height=\'100%\' fill=\'%230b1220\'/><text x=\'50%\' y=\'50%\' fill=\'%239aa4b2\' font-size=\'18\' text-anchor=\'middle\' dy=\'.3em\'>Фото рецепта</text></svg>'}" alt="">`+
+        `<div><strong>${r.name}</strong></div>`+
+        `<div class="small">Порции: ${r.servings} ${r.tags?.length? '· '+r.tags.map(t=>`<span class=\'tag\'>${t}</span>`).join(''):''}</div>`+
+        `<div class="toolbar"><button class="btn" data-load="${r.id}">Открыть</button><button class="btn danger" data-del="${r.id}">Удалить</button></div>`; list.appendChild(it); });
+    list.querySelectorAll('button[data-load]').forEach(b=>b.addEventListener('click',e=>loadRecipeToBuilder(e.target.getAttribute('data-load'))));
+    list.querySelectorAll('button[data-del]').forEach(b=>b.addEventListener('click',async e=>{ await idbDel('recipes', e.target.getAttribute('data-del')); toast('Удалено'); refreshRecCache(); })); }
+  async function loadRecipeToBuilder(id){ const r=state.recCache.find(x=>x.id===id); if(!r) return; state.items=[...(r.items||[])]; byId('servings').value=r.servings||2; byId('steps').value=r.steps||''; document.querySelector('[data-tab="builder"]').click(); renderTable(); toast('Загружено в конструктор'); }
+
+  // admin: ingredients
+  async function saveIngredient(){ const name=(byId('ingName').value||'').trim(); if(!name){ toast('Имя ингредиента'); return } const obj={ id:'ing-'+slug(name), name, cat: byId('ingCat').value, per100:{k:Number(byId('kcal').value||0), p:Number(byId('prot').value||0), f:Number(byId('fat').value||0), c:Number(byId('carb').value||0), price:Number(byId('price').value||0)}, flags:{gluten:byId('flag_gluten').checked, soy:byId('flag_soy').checked, nuts:byId('flag_nuts').checked, night:byId('flag_night').checked, eggplant:byId('flag_eggplant').checked}, fdc: (byId('fdc').value||'').trim() };
+    await idbPut('ingredients',obj); toast('Ингредиент сохранён'); await refreshIngCache(); }
+  async function deleteIngredient(){ const name=(byId('ingName').value||'').trim(); if(!name){ toast('Имя для удаления'); return } await idbDel('ingredients','ing-'+slug(name)); toast('Ингредиент удалён'); await refreshIngCache(); }
+  async function importIngredients(){ try{ const arr=JSON.parse(byId('importIng').value||'[]'); for(const it of arr){ if(!it.name) continue; const obj={ id:it.id||('ing-'+slug(it.name)), name:it.name, cat: it.cat||'veg', per100:it.per100||{k:0,p:0,f:0,c:0,price:0}, flags:it.flags||{}, fdc: it.fdc||'' }; await idbPut('ingredients',obj);} toast('Ингредиенты импортированы'); await refreshIngCache(); }catch(e){ toast('Ошибка JSON ингредиентов') } }
+  async function clearIngredients(){ await idbClear('ingredients'); toast('Таблица ингредиентов очищена'); await refreshIngCache(); }
+
+  // admin: recipes + packs
+  let rItems=[]; function renderRItems(){ const box=byId('rItemsBox'); if(!rItems.length){ box.className='empty'; box.textContent='Состав рецепта: пока пусто. Нажмите «+ Ингредиент из БД».'; return } box.className='card'; box.innerHTML=''; rItems.forEach((it,i)=>{ const row=document.createElement('div'); row.className='toolbar'; const ing=findIngByName(it.name)||findIngById(it.id)||{}; row.innerHTML=`<div style="flex:1">${ing.name||it.name}</div><input data-i="${i}" class="riQty" type="number" value="${it.qty||100}" min="1" style="max-width:120px"><button data-del="${i}" class="btn danger">✖</button>`; box.appendChild(row); }); box.querySelectorAll('.riQty').forEach(inp=>inp.addEventListener('input',e=>{ rItems[Number(e.target.dataset.i)].qty=Math.max(1,Number(e.target.value||1)); })); box.querySelectorAll('button[data-del]').forEach(btn=>btn.addEventListener('click',e=>{ rItems.splice(Number(e.target.getAttribute('data-del')),1); renderRItems(); })); }
+  async function addItemFromDB(){ if(!state.ingCache.length){ toast('Сначала добавьте ингредиенты'); return } const name=prompt('Название ингредиента (как в БД)'); if(!name) return; const ing=findIngByName(name); if(!ing){ toast('Не найдено в БД'); return } rItems.push({id:ing.id,name:ing.name,qty:100}); renderRItems(); }
+  async function saveRecipeAdmin(){ const name=(byId('rName').value||'').trim(); if(!name){ toast('Имя рецепта'); return } const id='rec-'+slug(name); const tags=(byId('rTags').value||'').split(',').map(s=>s.trim()).filter(Boolean); const servings=Math.max(1,Number(byId('rServ').value||1)); const steps=byId('rSteps').value||''; let image=null; const f=byId('rImage').files[0]; if(f){ image= await fileToDataURL(f); }
+    const rec={id,name,servings,items:rItems.map(x=>({id:x.id,name:x.name,qty:Number(x.qty||100)})),steps,tags,image,createdAt:Date.now(),updatedAt:Date.now()}; await idbPut('recipes',rec); toast('Рецепт сохранён'); rItems=[]; renderRItems(); await refreshRecCache(); }
+  async function delRecipeAdmin(){ const name=(byId('rName').value||'').trim(); if(!name){ toast('Имя рецепта для удаления'); return } await idbDel('recipes','rec-'+slug(name)); toast('Рецепт удалён'); await refreshRecCache(); }
+  async function importRecipes(){ try{ const arr=JSON.parse(byId('importRec').value||'[]'); for(const r of arr){ if(!r.name) continue; const rec={ id:r.id||('rec-'+slug(r.name)), name:r.name, servings:r.servings||2, items:(r.items||[]).map(x=>({id:x.id||('ing-'+slug(x.name)), name:x.name, qty:Number(x.qty||100)})), steps:r.steps||'', tags:r.tags||[], image:r.image||null, createdAt:Date.now(), updatedAt:Date.now()}; await idbPut('recipes',rec);} toast('Рецепты импортированы'); await refreshRecCache(); }catch(e){ toast('Ошибка JSON рецептов') } }
+  async function clearRecipes(){ await idbClear('recipes'); toast('Таблица рецептов очищена'); await refreshRecCache(); }
+  async function exportDB(){ const ings=await idbAll('ingredients'); const recs=await idbAll('recipes'); const data={ingredients:ings, recipes:recs, ts:new Date().toISOString()}; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})); a.download=`veganDB_${Date.now()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
+  async function resetDB(){ await clearIngredients(); await clearRecipes(); toast('Полный сброс выполнен'); }
+  function fileToDataURL(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); }); }
+
+  // packs
+  async function importPackFile(){ const f=byId('packFile').files[0]; if(!f){ toast('Выберите файл пакета'); return } const txt=await f.text(); try{ const pack=JSON.parse(txt); const ings=pack.ingredients||[]; const recs=pack.recipes||[]; for(const it of ings){ if(!it.name) continue; await idbPut('ingredients',{ id:it.id||('ing-'+slug(it.name)), name:it.name, cat:it.cat||'veg', per100:it.per100||{k:0,p:0,f:0,c:0,price:0}, flags:it.flags||{}, fdc:it.fdc||'' }); }
+      for(const r of recs){ if(!r.name) continue; await idbPut('recipes',{ id:r.id||('rec-'+slug(r.name)), name:r.name, servings:r.servings||2, items:(r.items||[]).map(x=>({id:x.id||('ing-'+slug(x.name)), name:x.name, qty:Number(x.qty||100)})), steps:r.steps||'', tags:r.tags||[], image:r.image||null, createdAt:Date.now(), updatedAt:Date.now()}); }
+      toast(`Импортировано: ${ings.length} ингредиентов, ${recs.length} рецептов`); await refreshIngCache(); await refreshRecCache();
+    }catch(e){ toast('Ошибка JSON пакета') }
+  }
+
+  // random recipe from DB
+  function randomRecipe(){ state.items=[]; const f=filters(); const pick=cat=>{ const pool=state.ingCache.filter(x=>x.cat===cat && flagsOK(x,f)); if(!pool.length) return null; return pool[Math.floor(Math.random()*pool.length)]}; const base=pick('grain')||pick('veg'); if(base) state.items.push({id:base.id,qty:180}); const prot=pick('protein'); if(prot) state.items.push({id:prot.id,qty:150}); const veg1=pick('veg'); if(veg1) state.items.push({id:veg1.id,qty:120}); const veg2=pick('veg'); if(veg2 && veg2.id!==veg1?.id) state.items.push({id:veg2.id,qty:120}); const sauce=pick('sauce'); if(sauce) state.items.push({id:sauce.id,qty:25}); renderTable(); genSteps(); }
+
+  // events
+  ['category','search','f_gluten','f_soy','f_nuts','f_night','f_no_eggplant'].forEach(id=> byId(id).addEventListener('input', refreshIngSelect));
+  byId('ingSelect').addEventListener('dblclick',()=>{ byId('qty').value=100; addSelected(); });
+  byId('add').addEventListener('click', addSelected);
+  byId('servings').addEventListener('input', updateKPI);
+  byId('btnSteps').addEventListener('click', genSteps);
+  byId('btnCopy').addEventListener('click', copyText);
+  byId('btnExport').addEventListener('click', exportJSON);
+  byId('btnPrint').addEventListener('click', printPage);
+  byId('btnClear').addEventListener('click', ()=>{ state.items=[]; renderTable(); byId('steps').value=''; });
+  byId('btnRandom').addEventListener('click', randomRecipe);
+  byId('saveRecipe').addEventListener('click', saveRecipeFromBuilder);
+
+  byId('exportDb').addEventListener('click', exportDB);
+  byId('qRecipes').addEventListener('input', renderRecipes);
+
+  byId('saveIng').addEventListener('click', saveIngredient);
+  byId('deleteIng').addEventListener('click', deleteIngredient);
+  byId('btnImportIng').addEventListener('click', importIngredients);
+  byId('btnClearIng').addEventListener('click', clearIngredients);
+
+  byId('btnAddItem').addEventListener('click', addItemFromDB);
+  byId('btnSaveRecipe').addEventListener('click', saveRecipeAdmin);
+  byId('btnDelRecipe').addEventListener('click', delRecipeAdmin);
+  byId('btnExportDB').addEventListener('click', exportDB);
+  byId('btnResetDB').addEventListener('click', resetDB);
+  byId('btnImportPack').addEventListener('click', importPackFile);
+
+  // init
+  (async function init(){ await openDB(); await refreshIngCache(); await refreshRecCache(); renderTable(); })();
+})();
+</script>
+</body></html>
