@@ -9,19 +9,24 @@ class Pricing:
     output_per_1k: float = 1.5
 
 def estimate_cost(prompt: str, response_tokens: int, pricing: Pricing = Pricing()) -> Tuple[int, float]:
-    """Estimate token usage and price.
-
-    Args:
-        prompt: input text (user + system).
-        response_tokens: expected output tokens from the model.
-        pricing: per-1k pricing (input/output).
-
+    """
+    Estimate token usage and USD cost for a prompt/response pair.
+    
+    Calculates input tokens using a whitespace-based token counter, clamps the provided
+    response token count to a non-negative integer, then computes total tokens and
+    cost using per-1k-token rates from `pricing`. The returned price is rounded to
+    6 decimal places.
+    
+    Parameters:
+        prompt: Full input text (e.g., system + user messages); token count is derived
+            by a naive whitespace split.
+        response_tokens: Expected number of output tokens; will be converted to an
+            int and clamped to zero if negative.
+        pricing: Per-1k USD rates for input and output tokens (uses `Pricing`
+            defaults if not provided).
+    
     Returns:
-        total_tokens: int
-        total_price_usd: float
-
-    Notes:
-        - Token counter is naive (whitespace split). Suitable for ballpark figures only.
+        tuple[int, float]: (total_tokens, total_price_usd)
     """
     input_tokens = count_tokens(prompt)
     out_tokens = max(0, int(response_tokens))
