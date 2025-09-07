@@ -1,0 +1,12 @@
+review:
+  depth: standard
+  prefer_inline_comments: true
+  summarize_findings: true
+guidance:
+  focus:
+    - security
+    - dead_code
+    - complexity
+    - missing_tests
+    - style_consistency
+  suggest_fixes: true
