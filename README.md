@@ -1,4 +1,4 @@
-# Philosopher Stone · Minimal Reviewable Project
+# Philosophe r Stone · Minimal Reviewable Project
 
 Short CLI + lib to estimate token counts and cost for LLM prompts.
 

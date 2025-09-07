@@ -8,11 +8,21 @@ def count_tokens(text: str) -> int:
     return len(text.split())
 
 def split_into_chunks(text: str, max_tokens: int) -> list[str]:
-    """Split text into chunks with at most `max_tokens` tokens each.
-
+    """
+    Split text into whitespace-delimited chunks, each containing at most `max_tokens` tokens.
+    
+    This function tokenizes `text` using str.split() (whitespace) and groups tokens into consecutive chunks no larger than `max_tokens`.
+    Empty or all-whitespace input returns an empty list. Tokens are rejoined with single spaces in each returned chunk.
+    
     Args:
-        text: source text.
-        max_tokens: positive integer, the hard limit per chunk.
+        text: Source string to split.
+        max_tokens: Positive integer limit for tokens per chunk.
+    
+    Returns:
+        A list of chunk strings, each containing up to `max_tokens` tokens.
+    
+    Raises:
+        ValueError: If `max_tokens` is not a positive integer.
     """
     if max_tokens <= 0:
         raise ValueError("max_tokens must be positive")
@@ -32,6 +42,20 @@ def split_into_chunks(text: str, max_tokens: int) -> list[str]:
     return chunks
 
 def split_into_chunks_iter(text: str, max_tokens: int):
+    """
+    Yield successive whitespace-delimited chunks of `text` with at most `max_tokens` tokens each.
+    
+    This is a generator version of chunking that splits input on whitespace (equivalent to `text.split()`) and yields each chunk as a single string of tokens joined by spaces. Raises ValueError if `max_tokens` is not positive.
+    
+    Parameters:
+        max_tokens (int): Maximum number of tokens per yielded chunk; must be > 0.
+    
+    Yields:
+        str: Next chunk containing 1..max_tokens tokens (empty input yields nothing).
+    
+    Raises:
+        ValueError: If `max_tokens <= 0`.
+    """
     if max_tokens <= 0:
         raise ValueError("max_tokens must be positive")
     cur: list[str] = []
