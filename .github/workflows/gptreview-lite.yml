@@ -1,0 +1,58 @@
+name: GPTReview Lite
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run minimal checks
+        run: |
+          python - <<'PY'
+          import re, json
+          from pathlib import Path
+          rep={"files":[], "summary":{"criticals":0,"majors":0,"minors":0}}
+          for p in Path(".").rglob("*"):
+            if any(seg in p.parts for seg in [".git",".github","node_modules","venv"]): continue
+            if p.suffix not in (".py",".js",".ts"): continue
+            try: code=p.read_text(encoding="utf-8", errors="ignore")
+            except: continue
+            issues=[]
+            if p.suffix==".py":
+              if "eval(" in code or "exec(" in code: issues.append({"type":"security","severity":"critical","msg":"avoid eval/exec"})
+              if re.search(r"except\\s*:\\s*pass", code): issues.append({"type":"logic","severity":"major","msg":"bare except pass"})
+              if "print(" in code: issues.append({"type":"style","severity":"minor","msg":"debug prints"})
+            else:
+              if ".innerHTML =" in code: issues.append({"type":"security","severity":"critical","msg":"innerHTML assignment → XSS risk"})
+              if "console.log(" in code: issues.append({"type":"style","severity":"minor","msg":"console.log left in code"})
+            if issues:
+              rep["files"].append({"path":str(p),"issues":issues})
+              for i in issues:
+                rep["summary"]["criticals"]+= (i["severity"]=="critical")
+                rep["summary"]["majors"]+= (i["severity"]=="major")
+                rep["summary"]["minors"]+= (i["severity"]=="minor")
+          Path("gptreview_report.json").write_text(json.dumps(rep,indent=2),encoding="utf-8")
+          print(json.dumps(rep["summary"]))
+          PY
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gptreview_report
+          path: gptreview_report.json
+      - name: Comment summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const s = JSON.parse(fs.readFileSync('gptreview_report.json','utf8')).summary;
+            const body = `**GPTReview Lite** — criticals: ${s.criticals}, majors: ${s.majors}, minors: ${s.minors}`;
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });
