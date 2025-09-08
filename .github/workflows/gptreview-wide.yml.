@@ -1,128 +1,154 @@
-name: GPTReview Wide (one-file)
+name: GPTReview Wide
+
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-jobs:
-  wide:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      security-events: write
-    steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+    types: [opened, synchronize, reopened]
 
-      - name: Build minimal checker (inline)
-        id: build
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build minimal checker (scan only added lines)
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          python - <<'PY'
-          import os, re, json, subprocess, tempfile, pathlib, sys
+          python3 - <<'PY'
+          import json, re, subprocess, os
           from pathlib import Path
 
-          ev = json.load(open(os.environ['GITHUB_EVENT_PATH']))
-          base = ev['pull_request']['base']['sha']
-          head = ev['pull_request']['head']['sha']
+          base = os.environ.get("BASE_REF","")
+          if base:
+              subprocess.run(["git","fetch","origin",base], check=False)
 
-          # get unified diff with no context for precise line mapping
-          diff = subprocess.check_output(["git","diff","--unified=0",f"{base}...{head}"], text=True, errors="ignore")
+          # Unified diff with zero context -> точные номера добавленных строк
+          diff = subprocess.check_output(
+              ["git","diff","--unified=0", f"origin/{base}", "HEAD"],
+              text=True, stderr=subprocess.STDOUT
+          )
 
-          findings = []
-          sarif = {
-            "version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json",
-            "runs":[{"tool":{"driver":{"name":"gptreview-wide","informationUri":"https://github.com","rules":[]}},
-                     "results":[]}]}
-
-          rule_defs = {
-            "py.eval_exec": {"level":"error","pattern":r"\b(eval|exec)\s*\(","msg":"Use of eval/exec is dangerous"},
-            "py.bare_except": {"level":"warning","pattern":r"except\s*:\s*pass","msg":"Bare except hides errors"},
-            "py.subprocess_shell": {"level":"warning","pattern":r"subprocess\.\w+\(.*shell\s*=\s*True","msg":"shell=True may be unsafe"},
-            "py.pickle": {"level":"warning","pattern":r"\bpickle\.(load|loads)\(","msg":"Untrusted pickle deserialization"},
-            "js.innerHTML": {"level":"error","pattern":r"\.innerHTML\s*=","msg":"Direct innerHTML assignment → XSS risk"},
-            "js.eval": {"level":"error","pattern":r"\beval\s*\(","msg":"JS eval is dangerous"},
-            "js.console": {"level":"note","pattern":r"\bconsole\.log\s*\(","msg":"Leftover console.log"},
-            "common.secrets": {"level":"error","pattern":r"(AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[0-9A-Za-z]{36,})","msg":"Possible secret detected"}
+          findings=[]
+          rules_meta={
+            "py_eval_exec": {"severity":"critical","msg":"avoid eval/exec","lang":"py"},
+            "py_except_pass": {"severity":"major","msg":"bare except pass","lang":"py"},
+            "py_print_debug": {"severity":"minor","msg":"debug prints","lang":"py"},
+            "js_innerHTML": {"severity":"critical","msg":"assignment to innerHTML (XSS risk)","lang":"js"},
+            "js_console_log": {"severity":"minor","msg":"console.log left in code","lang":"js"},
           }
 
-          # parse diff into hunks
-          file = None
-          for line in diff.splitlines():
-            if line.startswith("+++ b/"):
-              file = line[6:]
-              continue
-            if not file: 
-              continue
-            if line.startswith("@@"):
-              # @@ -old,+new @@
-              m = re.search(r"\+(\d+)(?:,(\d+))?", line)
-              new_start = int(m.group(1))
-              new_count = int(m.group(2) or "1")
-              cur_line = new_start
-              continue
-            if line.startswith("+"):
-              content = line[1:]
-              ext = Path(file).suffix.lower()
-              for key,rule in rule_defs.items():
-                if (ext==".py" and key.startswith("py.")) or (ext in (".js",".ts") and key.startswith("js.")) or key.startswith("common."):
-                  if re.search(rule["pattern"], content):
-                    findings.append({"path":file,"line":cur_line,"rule":key,"level":rule["level"],"msg":rule["msg"],"code":content})
-              cur_line += 1
-            elif line.startswith(" "):
-              cur_line += 1
-            else:
-              # deletions don't advance new file line
-              pass
+          cur_file=None; line_no=0
+          hunk_re=re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+          add_py=re.compile(r".*\.py$")
+          add_js=re.compile(r".*\.(?:js|ts|jsx|tsx)$")
 
-          # summary
-          summary = {"criticals":0,"majors":0,"minors":0}
-          level_map = {"error":"criticals","warning":"majors","note":"minors"}
+          for raw in diff.splitlines():
+              if raw.startswith("+++ b/"):
+                  cur_file=raw[6:]
+              elif raw.startswith("@@"):
+                  m=hunk_re.match(raw)
+                  if m:
+                      line_no=int(m.group(1))
+              elif raw.startswith("+") and not raw.startswith("+++"):
+                  code=raw[1:]
+                  lang="py" if add_py.match(cur_file or "") else ("js" if add_js.match(cur_file or "") else None)
+                  if not lang: 
+                      line_no += 1; 
+                      continue
+
+                  def add(rule):
+                      meta=rules_meta[rule]
+                      findings.append({
+                        "path":cur_file,"line":line_no,"rule":rule,
+                        "severity":meta["severity"],"msg":meta["msg"]
+                      })
+
+                  if lang=="py":
+                      if re.search(r"\b(eval|exec)\s*\(", code): add("py_eval_exec")
+                      if re.search(r"except\s*:\s*pass", code): add("py_except_pass")
+                      if re.search(r"\bprint\s*\(", code): add("py_print_debug")
+                  else:
+                      if re.search(r"\.innerHTML\s*=", code): add("js_innerHTML")
+                      if re.search(r"\bconsole\.log\s*\(", code): add("js_console_log")
+
+                  line_no += 1
+              else:
+                  # context/removed — не увеличиваем line_no
+                  pass
+
+          # де-дуп на всякий случай
+          seen=set(); dedup=[]
           for f in findings:
-            summary[level_map[f["level"]]] += 1
+              key=(f["path"],f["line"],f["rule"])
+              if key in seen: 
+                  continue
+              seen.add(key); dedup.append(f)
+          findings=dedup
 
-          Path("findings.json").write_text(json.dumps(findings,indent=2),encoding="utf-8")
-          Path("gptreview_report.json").write_text(json.dumps({"summary":summary,"findings":findings},indent=2),encoding="utf-8")
-
-          # SARIF
-          rule_ids = {}
+          summary={"criticals":0,"majors":0,"minors":0}
           for f in findings:
-            rid = f["rule"]
-            if rid not in rule_ids:
-              sarif["runs"][0]["tool"]["driver"]["rules"].append({
-                "id": rid, "name": rid, "shortDescription":{"text": rid}, "fullDescription":{"text": f["msg"]},
-                "defaultConfiguration":{"level": f["level"]}
-              })
-              rule_ids[rid]=True
-            sarif["runs"][0]["results"].append({
-              "ruleId": rid, "level": f["level"],
-              "message":{"text": f["msg"]},
-              "locations":[{"physicalLocation":{"artifactLocation":{"uri": f["path"]},
-              "region":{"startLine": f["line"], "startColumn":1}}}]
-            })
-          Path("results.sarif").write_text(json.dumps(sarif),encoding="utf-8")
+              s=f["severity"]
+              if s=="critical": summary["criticals"]+=1
+              elif s=="major": summary["majors"]+=1
+              elif s=="minor": summary["minors"]+=1
 
-          print(json.dumps({"summary":summary,"count":len(findings)}))
+          Path("findings.json").write_text(json.dumps(findings,ensure_ascii=False))
+          Path("gptreview_report.json").write_text(json.dumps({"summary":summary},ensure_ascii=False))
+
+          # SARIF 2.1.0
+          rules={}
+          for f in findings:
+              if f["rule"] not in rules:
+                  rules[f["rule"]]={"id":f["rule"],"name":f["rule"],"shortDescription":{"text":f["msg"]},"help":{"text":f["msg"]}}
+          sarif={
+            "version":"2.1.0",
+            "$schema":"https://json.schemastore.org/sarif-2.1.0.json",
+            "runs":[{"tool":{"driver":{"name":"GPTReview Wide","rules":list(rules.values())}},
+                     "results":[{"ruleId":f["rule"],
+                                 "level":"error" if f["severity"]=="critical" else ("warning" if f["severity"]=="major" else "note"),
+                                 "message":{"text":f["msg"]},
+                                 "locations":[{"physicalLocation":{"artifactLocation":{"uri":f["path"]},
+                                                                      "region":{"startLine":f["line"]}}}]} for f in findings]}]
+          }
+          Path("results.sarif").write_text(json.dumps(sarif))
           PY
 
       - name: Upload SARIF (Code scanning)
         uses: github/codeql-action/upload-sarif@v3
         with: { sarif_file: results.sarif }
 
-      - name: Comment summary
+      - name: Upsert summary comment
         uses: actions/github-script@v7
         with:
           script: |
+            const marker = "<!-- GPTREVIEW_SUMMARY -->";
             const fs = require('fs');
             const rep = JSON.parse(fs.readFileSync('gptreview_report.json','utf8'));
             const s = rep.summary || {criticals:0,majors:0,minors:0};
-            const body = `**GPTReview Wide** — criticals: ${s.criticals}, majors: ${s.majors}, minors: ${s.minors}`;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body
-            });
+            const body = `${marker}\n**GPTReview Wide** — criticals: ${s.criticals}, majors: ${s.majors}, minors: ${s.minors}`;
+            const {owner, repo} = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const all = await github.paginate(github.rest.issues.listComments,{owner,repo,issue_number});
+            const mine = all.find(c => c.body && c.body.includes(marker));
+            if (mine) {
+              await github.rest.issues.updateComment({owner,repo,comment_id: mine.id, body});
+            } else {
+              await github.rest.issues.createComment({owner,repo,issue_number,body});
+            }
 
-      - name: Post line comments (review)
+      - name: Post line comments (up to 25)
         if: always()
         uses: actions/github-script@v7
         with:
@@ -130,15 +156,18 @@ jobs:
             const fs = require('fs');
             const findings = JSON.parse(fs.readFileSync('findings.json','utf8'));
             const pr = context.payload.pull_request;
-            // Coalesce to avoid spam (max 25)
-            const capped = findings.slice(0,25).map(f => ({
-              path: f.path, line: f.line, side: 'RIGHT',
-              body: `${f.msg}  \nRule: \`${f.rule}\``
+            const comments = findings.slice(0,25).map(f => ({
+              path: f.path,
+              line: f.line,
+              side: 'RIGHT',
+              body: `${f.msg}  \nSeverity: **${f.severity}**  \nRule: \`${f.rule}\``
             }));
-            if (capped.length) {
+            if (comments.length) {
               await github.rest.pulls.createReview({
-                owner: context.repo.owner, repo: context.repo.repo,
-                pull_number: pr.number, event: 'COMMENT',
-                comments: capped
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                event: 'COMMENT',
+                comments
               });
             }
