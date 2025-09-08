@@ -1,0 +1,144 @@
+name: GPTReview Wide (one-file)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+jobs:
+  wide:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Build minimal checker (inline)
+        id: build
+        run: |
+          python - <<'PY'
+          import os, re, json, subprocess, tempfile, pathlib, sys
+          from pathlib import Path
+
+          ev = json.load(open(os.environ['GITHUB_EVENT_PATH']))
+          base = ev['pull_request']['base']['sha']
+          head = ev['pull_request']['head']['sha']
+
+          # get unified diff with no context for precise line mapping
+          diff = subprocess.check_output(["git","diff","--unified=0",f"{base}...{head}"], text=True, errors="ignore")
+
+          findings = []
+          sarif = {
+            "version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json",
+            "runs":[{"tool":{"driver":{"name":"gptreview-wide","informationUri":"https://github.com","rules":[]}},
+                     "results":[]}]}
+
+          rule_defs = {
+            "py.eval_exec": {"level":"error","pattern":r"\b(eval|exec)\s*\(","msg":"Use of eval/exec is dangerous"},
+            "py.bare_except": {"level":"warning","pattern":r"except\s*:\s*pass","msg":"Bare except hides errors"},
+            "py.subprocess_shell": {"level":"warning","pattern":r"subprocess\.\w+\(.*shell\s*=\s*True","msg":"shell=True may be unsafe"},
+            "py.pickle": {"level":"warning","pattern":r"\bpickle\.(load|loads)\(","msg":"Untrusted pickle deserialization"},
+            "js.innerHTML": {"level":"error","pattern":r"\.innerHTML\s*=","msg":"Direct innerHTML assignment → XSS risk"},
+            "js.eval": {"level":"error","pattern":r"\beval\s*\(","msg":"JS eval is dangerous"},
+            "js.console": {"level":"note","pattern":r"\bconsole\.log\s*\(","msg":"Leftover console.log"},
+            "common.secrets": {"level":"error","pattern":r"(AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|ghp_[0-9A-Za-z]{36,})","msg":"Possible secret detected"}
+          }
+
+          # parse diff into hunks
+          file = None
+          for line in diff.splitlines():
+            if line.startswith("+++ b/"):
+              file = line[6:]
+              continue
+            if not file: 
+              continue
+            if line.startswith("@@"):
+              # @@ -old,+new @@
+              m = re.search(r"\+(\d+)(?:,(\d+))?", line)
+              new_start = int(m.group(1))
+              new_count = int(m.group(2) or "1")
+              cur_line = new_start
+              continue
+            if line.startswith("+"):
+              content = line[1:]
+              ext = Path(file).suffix.lower()
+              for key,rule in rule_defs.items():
+                if (ext==".py" and key.startswith("py.")) or (ext in (".js",".ts") and key.startswith("js.")) or key.startswith("common."):
+                  if re.search(rule["pattern"], content):
+                    findings.append({"path":file,"line":cur_line,"rule":key,"level":rule["level"],"msg":rule["msg"],"code":content})
+              cur_line += 1
+            elif line.startswith(" "):
+              cur_line += 1
+            else:
+              # deletions don't advance new file line
+              pass
+
+          # summary
+          summary = {"criticals":0,"majors":0,"minors":0}
+          level_map = {"error":"criticals","warning":"majors","note":"minors"}
+          for f in findings:
+            summary[level_map[f["level"]]] += 1
+
+          Path("findings.json").write_text(json.dumps(findings,indent=2),encoding="utf-8")
+          Path("gptreview_report.json").write_text(json.dumps({"summary":summary,"findings":findings},indent=2),encoding="utf-8")
+
+          # SARIF
+          rule_ids = {}
+          for f in findings:
+            rid = f["rule"]
+            if rid not in rule_ids:
+              sarif["runs"][0]["tool"]["driver"]["rules"].append({
+                "id": rid, "name": rid, "shortDescription":{"text": rid}, "fullDescription":{"text": f["msg"]},
+                "defaultConfiguration":{"level": f["level"]}
+              })
+              rule_ids[rid]=True
+            sarif["runs"][0]["results"].append({
+              "ruleId": rid, "level": f["level"],
+              "message":{"text": f["msg"]},
+              "locations":[{"physicalLocation":{"artifactLocation":{"uri": f["path"]},
+              "region":{"startLine": f["line"], "startColumn":1}}}]
+            })
+          Path("results.sarif").write_text(json.dumps(sarif),encoding="utf-8")
+
+          print(json.dumps({"summary":summary,"count":len(findings)}))
+          PY
+
+      - name: Upload SARIF (Code scanning)
+        uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: results.sarif }
+
+      - name: Comment summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const rep = JSON.parse(fs.readFileSync('gptreview_report.json','utf8'));
+            const s = rep.summary || {criticals:0,majors:0,minors:0};
+            const body = `**GPTReview Wide** — criticals: ${s.criticals}, majors: ${s.majors}, minors: ${s.minors}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });
+
+      - name: Post line comments (review)
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const findings = JSON.parse(fs.readFileSync('findings.json','utf8'));
+            const pr = context.payload.pull_request;
+            // Coalesce to avoid spam (max 25)
+            const capped = findings.slice(0,25).map(f => ({
+              path: f.path, line: f.line, side: 'RIGHT',
+              body: `${f.msg}  \nRule: \`${f.rule}\``
+            }));
+            if (capped.length) {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner, repo: context.repo.repo,
+                pull_number: pr.number, event: 'COMMENT',
+                comments: capped
+              });
+            }
