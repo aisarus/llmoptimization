@@ -1,4 +1,4 @@
-  name: GPTReview Wide
+name: GPTReview Wide
 
 on:
   pull_request:
